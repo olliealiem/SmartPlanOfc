@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SmartPlan — Planilhas inteligentes</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
+button{border:0;border-radius:10px;padding:11px 15px;background:#2563eb;color:white;font-weight:700;cursor:pointer}
+button:hover{filter:brightness(.95)}.secondary{background:#e8eef8;color:#172033}.danger{background:#dc3545}
+header{height:64px;background:#fff;border-bottom:1px solid #dfe6f0;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:10}
+.logo{font-size:23px;font-weight:800;color:#2563eb}.logo span{color:#111827}.head-actions{display:flex;gap:8px}
+main{max-width:1250px;margin:auto;padding:24px 16px}.screen{display:none}.screen.active{display:block}
+.hero{text-align:center;padding:58px 20px;background:#fff;border-radius:22px;box-shadow:0 8px 30px #17203312}
+.hero h1{font-size:42px;margin:0 0 10px}.hero p{max-width:720px;margin:0 auto 26px;color:#667085;line-height:1.6}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}.panel{background:#fff;border-radius:16px;padding:20px;box-shadow:0 5px 20px #1720330b;margin-bottom:18px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.back{margin-bottom:14px}
+.sheet-wrap{background:#fff;border:1px solid #dbe3ef;border-radius:14px;overflow:auto}
+table{border-collapse:collapse;min-width:760px;width:100%}th,td{border:1px solid #d9e1ec;min-width:120px;height:42px;padding:7px}th{background:#f1f5fa;text-align:center}.rowhead{min-width:45px;width:45px}td:focus{outline:2px solid #2563eb}
+.small{font-size:13px;color:#667085}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.card{padding:17px;border:1px solid #dbe3ef;border-radius:14px;background:#fff}.card b{display:block;font-size:24px;margin-top:7px}
+textarea,input,select{font:inherit;border:1px solid #ccd6e4;border-radius:10px;padding:11px}textarea{width:100%;min-height:100px;resize:vertical}
+.ai-box{display:grid;grid-template-columns:1fr 1fr;gap:16px}.answer{min-height:230px;background:#f7f9fc;border:1px solid #dbe3ef;border-radius:12px;padding:15px;white-space:pre-wrap;line-height:1.55}
+.quick{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.quick button{font-size:12px;padding:8px 10px}
+#chart{max-width:100%;background:#fff;border:1px solid #e1e7f0;border-radius:12px}
+.import-box{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.recent{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}.recent .card{cursor:pointer}
+@media(max-width:700px){.hero h1{font-size:32px}.ai-box{grid-template-columns:1fr}header{padding:0 10px}.head-actions button:first-child{display:none}}
+</style>
+</head>
+<body>
+<header>
+ <div class="logo">Smart<span>Plan</span></div>
+ <div class="head-actions">
+  <button class="secondary" onclick="show('home')">Início</button>
+  <button onclick="newSheet()">＋ Planilha</button>
+ </div>
+</header>
+
+<main>
+<section id="home" class="screen active">
+ <div class="hero">
+  <h1>Bem-vindo ao SmartPlan!</h1>
+  <p>Crie, importe, organize e entenda suas planilhas. O SmartPlan transforma dados em resumos, tabelas e gráficos e ainda possui uma IA com respostas prontas.</p>
+  <div class="actions">
+   <button onclick="newSheet()">📊 Criar planilha</button>
+   <button class="secondary" onclick="document.getElementById('file').click()">📥 Importar planilha</button>
+   <button class="secondary" onclick="show('ai')">🤖 SmartPlan IA</button>
+  </div>
+ </div>
+ <div class="panel" style="margin-top:18px">
+  <h2>📁 Suas planilhas</h2><div id="recent" class="recent"></div>
+ </div>
+ <input id="file" type="file" accept=".csv,.txt,.tsv,.xlsx,.xls" style="display:none" onchange="importFile(this)">
+</section>
+
+<section id="editor" class="screen">
+ <button class="secondary back" onclick="show('home')">← Voltar</button>
+ <div class="panel">
+  <input id="sheetTitle" value="Minha Planilha" style="font-size:22px;font-weight:bold;width:100%;margin-bottom:12px" oninput="save()">
+  <div class="toolbar">
+   <button onclick="addRow()">＋ Linha</button><button onclick="addCol()">＋ Coluna</button>
+   <button onclick="deleteRow()">− Linha</button><button onclick="deleteCol()">− Coluna</button>
+   <button onclick="openSummary()">🧠 Resumir</button><button onclick="show('ai')">🤖 IA</button>
+   <button onclick="document.getElementById('file').click()">📥 Importar</button><button onclick="downloadCSV()">📤 Exportar CSV</button>
+   <button class="danger" onclick="clearSheet()">🗑 Limpar</button>
+  </div>
+  <div class="sheet-wrap"><table id="sheet"></table></div>
+  <p class="small">As células são editáveis e salvas automaticamente no navegador. Importação: CSV, TXT, TSV, XLSX e XLS.</p>
+ </div>
+</section>
+
+<section id="summary" class="screen">
+ <button class="secondary back" onclick="show('editor')">← Voltar para planilha</button>
+ <div class="panel"><h2>🧠 Resumo da planilha</h2><div id="stats" class="cards"></div></div>
+ <div class="panel"><h2>📋 Tabela de resumo</h2><div class="sheet-wrap"><table id="summaryTable"></table></div></div>
+ <div class="panel"><h2>📈 Gráfico</h2>
+  <select id="chartType" onchange="drawChart()"><option value="bar">Barras</option><option value="line">Linha</option><option value="pie">Pizza</option></select>
+  <br><br><canvas id="chart" width="900" height="380"></canvas>
+ </div>
+</section>
+
+<section id="ai" class="screen">
+ <button class="secondary back" onclick="show('home')">← Voltar</button>
+ <div class="panel">
+  <h2>🤖 SmartPlan IA</h2>
+  <p class="small">Assistente offline com 100 respostas prontas. Ela também analisa a planilha atual quando você pedir.</p>
+  <div class="quick" id="quick"></div>
+  <div class="ai-box">
+   <div><textarea id="question" placeholder="Pergunte algo, por exemplo: como somar uma coluna?"></textarea><br><br>
+    <button onclick="askAI()">Perguntar</button>
+    <button class="secondary" onclick="analyzeAI()">Analisar minha planilha</button>
+   </div>
+   <div id="answer" class="answer">Olá! Sou a SmartPlan IA. Faça uma pergunta ou escolha uma pergunta pronta.</div>
+  </div>
+ </div>
+</section>
+</main>
+
+<script>
+let data=[],rows=8,cols=5;
+const answers=[
+["como criar","Para criar uma planilha, clique em “＋ Planilha”. Depois, edite qualquer célula."],
+["criar planilha","Clique em “＋ Planilha” no topo ou em “Criar planilha” na tela inicial."],
+["nova planilha","Use o botão “＋ Planilha” para começar uma nova planilha."],
+["importar","Você pode importar arquivos CSV, TXT ou TSV pelo botão “📥 Importar”. Escolha o arquivo no dispositivo."],
+["importar csv","Clique em Importar e selecione o arquivo CSV. O SmartPlan transforma as linhas e colunas em uma tabela."],
+["exportar","Na tela da planilha, clique em “📤 Exportar CSV” para baixar seus dados."],
+["salvar","O SmartPlan salva automaticamente a planilha no armazenamento local do navegador."],
+["editar célula","Clique dentro de uma célula e digite. A alteração é salva automaticamente."],
+["adicionar linha","Clique em “＋ Linha” para adicionar uma nova linha."],
+["adicionar coluna","Clique em “＋ Coluna” para adicionar uma nova coluna."],
+["remover linha","Clique em “− Linha” para remover a última linha."],
+["remover coluna","Clique em “− Coluna” para remover a última coluna."],
+["apagar","Use “🗑 Limpar” para apagar os dados da planilha atual."],
+["somar","Para somar números, use o botão Resumir. O SmartPlan calcula o total automaticamente."],
+["total","O resumo mostra o total de todos os valores numéricos encontrados."],
+["média","O resumo calcula a média dos valores numéricos da planilha."],
+["media","A média é calculada somando os valores e dividindo pela quantidade de números."],
+["maior","O resumo mostra automaticamente o maior valor encontrado."],
+["menor","O resumo mostra automaticamente o menor valor encontrado."],
+["gráfico","Clique em “🧠 Resumir” e escolha gráfico de barras, linha ou pizza."],
+["gráfico de barras","O gráfico de barras compara visualmente os primeiros valores numéricos."],
+["grafico de barras","Use o seletor de gráfico e escolha “Barras”."],
+["gráfico de linha","Escolha “Linha” no seletor da área de gráficos para visualizar a evolução dos valores."],
+["gráfico de pizza","Escolha “Pizza” para visualizar a proporção dos valores."],
+["resumir","Clique em “🧠 Resumir” para gerar estatísticas, tabela de resumo e gráfico."],
+["analisar","Posso analisar os números da sua planilha e informar quantidade, total, média, maior e menor."],
+["ia","A SmartPlan IA possui respostas prontas para dúvidas comuns sobre planilhas e pode analisar os dados atuais."],
+["smartplan","O SmartPlan é uma ferramenta para criar, importar, editar e analisar planilhas."],
+["planilha","Uma planilha organiza informações em linhas e colunas, facilitando cálculos e análises."],
+["linha","Linhas são os elementos horizontais da tabela e são numeradas na lateral."],
+["coluna","Colunas são os elementos verticais da tabela e são identificadas por letras."],
+["célula","Uma célula é o espaço onde você coloca um dado, texto ou número."],
+["numero","Você pode colocar números diretamente nas células. Eles são reconhecidos na análise."],
+["número","Números digitados nas células podem ser usados no resumo e nos gráficos."],
+["texto","Textos podem ser digitados normalmente nas células."],
+["dados","Organize seus dados em colunas com títulos e mantenha um padrão para facilitar a análise."],
+["organizar","Uma boa prática é colocar cada tipo de informação em uma coluna e cada registro em uma linha."],
+["tabela","O SmartPlan usa linhas e colunas para criar uma tabela editável."],
+["tabela resumo","A tabela de resumo apresenta quantidade, total, média, maior e menor valor."],
+["estatística","As estatísticas disponíveis incluem quantidade, total, média, maior e menor valor."],
+["quantidade","A quantidade representa quantos valores numéricos foram encontrados."],
+["porcentagem","Para calcular porcentagem manualmente, use a fórmula: parte ÷ total × 100."],
+["percentual","Percentual pode ser calculado com parte dividida pelo total e multiplicada por 100."],
+["fórmula","Nesta versão, o resumo calcula automaticamente estatísticas. Para cálculos simples, você também pode perguntar à IA."],
+["formula","Uma fórmula básica de soma é: =A1+A2+A3. O SmartPlan atual também oferece resumo automático."],
+["excel","Você pode exportar seus dados em CSV e abrir o arquivo em programas como Excel."],
+["google sheets","Você pode exportar em CSV e depois importar o arquivo em outros editores de planilhas."],
+["csv","CSV é um formato de texto que organiza dados em linhas e colunas e é compatível com muitos programas."],
+["arquivo","O SmartPlan permite importar CSV, TXT e TSV nesta versão."],
+["celular","O site foi feito para funcionar também em celulares e tablets."],
+["tablet","A interface é responsiva e pode ser usada em tablets."],
+["offline","As funções principais funcionam no navegador sem servidor externo."],
+["internet","A IA pronta desta versão funciona sem conexão porque as respostas ficam dentro do arquivo HTML."],
+["100 respostas","A SmartPlan IA possui 100 respostas prontas para perguntas comuns."],
+["ajuda","Você pode perguntar como criar, importar, exportar, resumir, calcular ou usar gráficos."],
+["tutorial","Comece criando uma planilha, preencha os dados, clique em Resumir e depois escolha o gráfico."],
+["começar","Clique em “Criar planilha”, preencha as células e use Resumir quando quiser analisar."],
+["primeiro passo","O primeiro passo é criar uma planilha e inserir seus dados."],
+["segundo passo","Depois de inserir os dados, revise as células e clique em Resumir."],
+["terceiro passo","Na tela de resumo, escolha o tipo de gráfico que deseja visualizar."],
+["backup","Para guardar uma cópia, use “Exportar CSV” e salve o arquivo no dispositivo."],
+["perdi","Se os dados ainda estiverem salvos no navegador, abra novamente o SmartPlan no mesmo navegador. Para segurança, exporte cópias CSV."],
+["resetar","Use “Limpar” para apagar os dados da planilha atual. Essa ação deve ser usada com cuidado."],
+["título","Você pode editar o título no campo acima da planilha."],
+["nome","O nome da planilha pode ser alterado no campo de título."],
+["colocar nome","Clique no título “Minha Planilha” e digite o nome que quiser."],
+["somatório","O somatório é o total dos valores numéricos encontrados."],
+["soma total","O campo Total no resumo mostra a soma dos números encontrados."],
+["calcular média","Clique em Resumir para calcular a média automaticamente."],
+["calcular total","Clique em Resumir para calcular o total automaticamente."],
+["comparar","O gráfico de barras é uma boa opção para comparar valores."],
+["evolução","O gráfico de linha é útil para observar uma sequência de valores."],
+["proporção","O gráfico de pizza é útil para visualizar proporções entre valores."],
+["visualizar","Use os gráficos para visualizar seus números de maneira mais clara."],
+["dashboard","A tela inicial funciona como um painel para acessar suas planilhas e a IA."],
+["painel","O painel inicial reúne as opções de criar, importar e abrir recursos do SmartPlan."],
+["arquivo csv","Use Importar para carregar um CSV e Exportar CSV para salvar uma cópia."],
+["tsv","Arquivos TSV também podem ser importados; as colunas são separadas por tabulação."],
+["txt","Arquivos TXT simples podem ser importados quando seus dados estiverem separados por ponto e vírgula, vírgula ou tabulação."],
+["separador","Na importação, o SmartPlan tenta identificar automaticamente vírgula, ponto e vírgula ou tabulação."],
+["backup csv","Uma forma simples de backup é exportar sua planilha como CSV."],
+["segurança","Os dados desta versão ficam no armazenamento local do navegador. Evite usar computadores compartilhados para informações privadas."],
+["privacidade","A versão local não envia automaticamente sua planilha para um servidor."],
+["funciona","Sim. As funções principais de edição, resumo, gráficos e IA pronta funcionam no navegador."],
+["erro","Se algo não aparecer corretamente, recarregue a página e tente novamente. Também confira se o arquivo importado está em CSV, TXT ou TSV."],
+["não funciona","Verifique se o navegador permite armazenamento local e se o arquivo importado é CSV, TXT ou TSV."],
+["abrir","Abra o arquivo HTML em um navegador moderno para usar o SmartPlan."],
+["baixar","Para baixar os dados, abra a planilha e clique em Exportar CSV."],
+["copiar","Você pode selecionar e copiar células normalmente pelo navegador. Para uma cópia completa, exporte como CSV."],
+["colar","Você pode colar dados em células usando os comandos normais de copiar e colar do dispositivo."],
+["mudar gráfico","Na tela de resumo, use o seletor para trocar entre barras, linha e pizza."],
+["dados numéricos","A análise considera como números valores que o navegador consegue interpretar como números."],
+["zero","O valor zero é um número válido e participa das estatísticas."],
+["decimal","Você pode usar valores decimais; a análise tenta reconhecer formatos com vírgula."],
+["moeda","Você pode registrar valores de dinheiro como números. Para análises mais confiáveis, evite misturar símbolos e texto na mesma célula."],
+["vendas","Para vendas, uma boa estrutura é: Produto, Quantidade, Preço e Total."],
+["estoque","Para estoque, você pode usar colunas como Produto, Quantidade, Entrada e Saída."],
+["alunos","Para notas, use colunas com aluno, matéria e nota. Depois use Resumir para analisar os números."],
+["notas","O SmartPlan pode analisar notas numéricas e calcular média, maior e menor."],
+["financeiro","Para controle financeiro, organize data, descrição, categoria e valor em colunas."],
+["empresa","Use linhas para registros e colunas para categorias de informação."],
+["relatório","Use Resumir para criar uma visão rápida dos números da sua planilha."],
+["resumo automático","O resumo automático encontra números e calcula estatísticas sem você precisar fazer as contas."],
+["ajudar com dados","Sim. Clique em “Analisar minha planilha” na área da IA para receber uma análise rápida."],
+["análise da planilha","A análise da IA usa os dados numéricos atuais para apresentar quantidade, total, média, maior e menor."],
+["obrigado","Por nada! Estou aqui para ajudar com o SmartPlan."],
+["oi","Olá! 👋 Como posso ajudar com sua planilha?"],
+["olá","Olá! 👋 Pergunte qualquer coisa sobre o SmartPlan."],
+["bom dia","Bom dia! Vamos organizar seus dados? 📊"],
+["boa tarde","Boa tarde! Posso ajudar você a criar ou analisar uma planilha."],
+["boa noite","Boa noite! Posso ajudar você com suas planilhas."],
+["quem é você","Sou a SmartPlan IA, um assistente integrado ao SmartPlan."],
+["o que você faz","Posso responder dúvidas sobre o SmartPlan e analisar os números da planilha atual."],
+["versão","Esta é uma versão do SmartPlan em um único arquivo HTML."],
+["melhorar","Para melhorar uma planilha, organize títulos, mantenha os tipos de dados consistentes e use gráficos para destacar informações."],
+["dica","Dica: mantenha uma informação por coluna e um registro por linha."],
+["dicas","Dica: use títulos claros, não misture texto e números e faça backups em CSV."],
+["fim","Quando terminar, exporte sua planilha como CSV para manter uma cópia."],
+["sair","Você pode voltar à tela inicial pelo botão “Início”."],
+["voltar","Use o botão “← Voltar” para retornar à tela anterior."],
+["menu","Os botões principais ficam no topo e as ferramentas aparecem dentro de cada área."],
+["interface","A interface foi feita para ser simples, com ferramentas agrupadas por tarefa."],
+["automático","O salvamento local acontece automaticamente quando você altera dados."],
+["localstorage","O navegador usa armazenamento local para guardar a planilha nesta versão."],
+["sem servidor","O SmartPlan foi feito para funcionar como um arquivo HTML sem precisar de servidor."],
+["html","O SmartPlan está concentrado em um único arquivo HTML com CSS e JavaScript."],
+["programação","O site usa HTML, CSS e JavaScript para funcionar no navegador."],
+["desenvolvimento","Você pode expandir o SmartPlan adicionando novos tipos de células, fórmulas e integrações."],
+["futuro","Novas funções podem ser adicionadas, como fórmulas avançadas, mais gráficos e integração com APIs."],
+["ideias","Boas ideias para evoluir incluem filtros, ordenação, fórmulas, mais tipos de gráficos e colaboração online."]
+];
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='home')renderRecent()}
+function newSheet(){
+ data=Array.from({length:8},()=>Array(5).fill(""));rows=8;cols=5;
+ document.getElementById('sheetTitle').value='Minha Planilha';render();save();show('editor')
+}
+function render(){
+ let t=document.getElementById('sheet');t.innerHTML='<tr><th class="rowhead">#</th>'+Array.from({length:cols},(_,c)=>`<th>${String.fromCharCode(65+c)}</th>`).join('')+'</tr>';
+ for(let r=0;r<rows;r++){let tr=document.createElement('tr');tr.innerHTML=`<th class="rowhead">${r+1}</th>`;
+  for(let c=0;c<cols;c++){let td=document.createElement('td');td.contentEditable='true';td.textContent=data[r]?.[c]||'';td.dataset.r=r;td.dataset.c=c;
+   td.oninput=()=>{data[r][c]=td.textContent;save()};tr.appendChild(td)}t.appendChild(tr)}
+}
+function addRow(){data.push(Array(cols).fill(''));rows++;render();save()}
+function addCol(){data.forEach(r=>r.push(''));cols++;render();save()}
+function deleteRow(){if(rows>1){data.pop();rows--;render();save()}}
+function deleteCol(){if(cols>1){data.forEach(r=>r.pop());cols--;render();save()}}
+function clearSheet(){if(confirm('Limpar toda a planilha?')){data=Array.from({length:rows},()=>Array(cols).fill(''));render();save()}}
+function save(){localStorage.setItem('smartplan_current',JSON.stringify({data,rows,cols,title:document.getElementById('sheetTitle')?.value||'Minha Planilha'}));saveRecent()}
+function saveRecent(){let x=JSON.parse(localStorage.getItem('smartplan_recent')||'[]'),title=document.getElementById('sheetTitle')?.value||'Minha Planilha';x=x.filter(a=>a.title!==title);x.unshift({title,data,rows,cols});localStorage.setItem('smartplan_recent',JSON.stringify(x.slice(0,8)))}
+function load(){
+ let x=JSON.parse(localStorage.getItem('smartplan_current')||'null');
+ if(x){data=x.data;rows=x.rows;cols=x.cols;document.getElementById('sheetTitle').value=x.title||'Minha Planilha';render()}
+ else renderRecent()
+}
+function renderRecent(){
+ let box=document.getElementById('recent'),x=JSON.parse(localStorage.getItem('smartplan_recent')||'[]');
+ box.innerHTML=x.length?x.map((a,i)=>`<div class="card" onclick="openRecent(${i})">📊 <b>${esc(a.title)}</b><span class="small">${a.rows} linhas × ${a.cols} colunas</span></div>`).join(''):'<div class="small">Nenhuma planilha salva ainda. Crie uma para começar.</div>'
+}
+function openRecent(i){let x=JSON.parse(localStorage.getItem('smartplan_recent')||'[]')[i];if(!x)return;data=x.data;rows=x.rows;cols=x.cols;document.getElementById('sheetTitle').value=x.title;render();save();show('editor')}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+function importFile(input){
+ let file=input.files && input.files[0];
+ if(!file)return;
+ const name=file.name.toLowerCase();
+ const isExcel=name.endsWith('.xlsx')||name.endsWith('.xls');
+ if(isExcel){
+   if(typeof XLSX==='undefined'){
+     const script=document.createElement('script');
+     script.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+     script.onload=()=>readExcel(file,input);
+     script.onerror=()=>{alert('Não foi possível carregar o suporte a Excel. Verifique sua internet e tente novamente. Para uso offline, exporte o arquivo como CSV.');input.value=''};
+     document.head.appendChild(script);
+   }else readExcel(file,input);
+   return;
+ }
+ const reader=new FileReader();
+ reader.onload=e=>{
+   try{
+     let text=String(e.target.result||'').replace(/^\uFEFF/,'');
+     let lines=text.split(/\r?\n/).filter(x=>x.trim()!=='');
+     if(!lines.length){alert('O arquivo está vazio.');input.value='';return;}
+     let first=lines[0];
+     let sep=first.includes('\t')?'\t':first.includes(';')?';':',';
+     let imported=lines.map(line=>parseCSVLine(line,sep));
+     cols=Math.max(...imported.map(r=>r.length),1);
+     data=imported.map(r=>{let a=r.slice();while(a.length<cols)a.push('');return a});
+     rows=data.length;
+     document.getElementById('sheetTitle').value=file.name.replace(/\.[^.]+$/,'')||'Importada';
+     render();save();show('editor');
+     alert('Planilha importada com sucesso!');
+   }catch(err){alert('Erro ao importar o arquivo: '+err.message)}
+   input.value='';
+ };
+ reader.onerror=()=>{alert('Não foi possível ler o arquivo.');input.value=''};
+ reader.readAsText(file,'UTF-8');
+}
+function readExcel(file,input){
+ const reader=new FileReader();
+ reader.onload=e=>{
+   try{
+     const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+     if(!wb.SheetNames.length)throw new Error('Nenhuma aba encontrada.');
+     const ws=wb.Sheets[wb.SheetNames[0]];
+     const imported=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+     if(!imported.length)throw new Error('A planilha está vazia.');
+     cols=Math.max(...imported.map(r=>r.length),1);
+     data=imported.map(r=>{let a=r.slice();while(a.length<cols)a.push('');return a});
+     rows=data.length;
+     document.getElementById('sheetTitle').value=file.name.replace(/\.[^.]+$/,'')||'Importada';
+     render();save();show('editor');
+     alert('Planilha Excel importada com sucesso!');
+   }catch(err){alert('Erro ao importar Excel: '+err.message)}
+   input.value='';
+ };
+ reader.onerror=()=>{alert('Não foi possível ler o arquivo Excel.');input.value=''};
+ reader.readAsArrayBuffer(file);
+}
+function downloadCSV(){
+ let csv=data.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';')).join('\r\n'),a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=(document.getElementById('sheetTitle').value||'smartplan')+'.csv';a.click()
+}
+function nums(){return data.flat().map(v=>{let s=String(v).trim();if(!s)return NaN;s=s.replace(/\s/g,'');if(s.includes(',')&&!s.includes('.'))s=s.replace(',','.');else if(s.includes('.')&&s.includes(','))s=s.replace(/\./g,'').replace(',','.');return parseFloat(s)}).filter(Number.isFinite)}
+function fmt(n){return Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:2})}
+function openSummary(){show('summary');makeSummary()}
+function makeSummary(){
+ let ns=nums(),total=ns.reduce((a,b)=>a+b,0),avg=ns.length?total/ns.length:0,max=ns.length?Math.max(...ns):0,min=ns.length?Math.min(...ns):0;
+ document.getElementById('stats').innerHTML=[['Valores numéricos',ns.length],['Total',fmt(total)],['Média',fmt(avg)],['Maior',fmt(max)],['Menor',fmt(min)]].map(x=>`<div class="card">${x[0]}<b>${x[1]}</b></div>`).join('');
+ document.getElementById('summaryTable').innerHTML='<tr><th>Métrica</th><th>Valor</th></tr>'+[['Quantidade',ns.length],['Total',fmt(total)],['Média',fmt(avg)],['Maior valor',fmt(max)],['Menor valor',fmt(min)]].map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td></tr>`).join('');
+ drawChart()
+}
+function drawChart(){
+ let cv=document.getElementById('chart'),ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);let v=nums().slice(0,12);
+ if(!v.length){ctx.font='20px Arial';ctx.fillText('Adicione números para gerar um gráfico.',30,60);return}
+ let type=document.getElementById('chartType').value,max=Math.max(...v.map(Math.abs),1);
+ if(type==='pie'){let total=v.reduce((a,b)=>a+Math.abs(b),0),start=0;v.forEach((n,i)=>{let ang=Math.abs(n)/total*Math.PI*2;ctx.beginPath();ctx.moveTo(450,190);ctx.arc(450,190,140,start,start+ang);ctx.closePath();ctx.fillStyle=`hsl(${i*360/v.length},70%,60%)`;ctx.fill();start+=ang});return}
+ let w=700/v.length;ctx.strokeStyle='#555';ctx.beginPath();ctx.moveTo(60,320);ctx.lineTo(850,320);ctx.stroke();
+ v.forEach((n,i)=>{let h=Math.abs(n)/max*270,x=80+i*w;if(type==='bar'){ctx.fillStyle='#2563eb';ctx.fillRect(x,320-h,w-12,h)}else{if(i){let px=80+(i-1)*w,py=320-v[i-1]/max*270;ctx.strokeStyle='#2563eb';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(px+w/2,py);ctx.lineTo(x+w/2,320-n/max*270);ctx.stroke()}ctx.fillStyle='#2563eb';ctx.beginPath();ctx.arc(x+w/2,320-n/max*270,5,0,Math.PI*2);ctx.fill()}})
+}
+function askAI(){
+ let q=document.getElementById('question').value.toLowerCase().trim(),ans='Não encontrei uma resposta pronta para essa pergunta. Tente perguntar sobre criar, importar, exportar, resumir, gráficos, linhas, colunas ou análise da planilha.';
+ for(let [key,val] of answers){if(q.includes(key)){ans=val;break}}
+ document.getElementById('answer').textContent=ans
+}
+function analyzeAI(){
+ let ns=nums(),total=ns.reduce((a,b)=>a+b,0),avg=ns.length?total/ns.length:0;
+ document.getElementById('answer').textContent=ns.length?`📊 Análise da sua planilha\n\n• Foram encontrados ${ns.length} valores numéricos.\n• Total: ${fmt(total)}\n• Média: ${fmt(avg)}\n• Maior valor: ${fmt(Math.max(...ns))}\n• Menor valor: ${fmt(Math.min(...ns))}\n\n💡 Sugestão: use o botão “Resumir” para ver a tabela de resumo e os gráficos.`:'Não encontrei valores numéricos na planilha atual. Adicione alguns números e tente novamente.'
+}
+function setupQuick(){document.getElementById('quick').innerHTML=answers.slice(0,18).map(([q])=>`<button class="secondary" onclick="document.getElementById('question').value='${q}';askAI()">${q}</button>`).join('')}
+setupQuick();load();
+</script>
+</body>
+</html>
